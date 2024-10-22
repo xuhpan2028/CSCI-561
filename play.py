@@ -4,6 +4,9 @@ from alpha_best import AlphaBetaPlayer
 import concurrent.futures
 from tqdm import tqdm  # Import tqdm for progress bar
 from alpha_beta_aggre import AlphaBetaPlayer1
+from player_mcts import MCTSPlayer
+from player_greedy import GreedyPlayer
+from player_aggressive import AggressivePlayer
 
 def play_game(N):
     go = GO(N)

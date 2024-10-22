@@ -20,7 +20,7 @@ class AlphaBetaPlayer1:
             i, j = move
             test_go = go.copy_board()
             test_go.place_chess(i, j, piece_type)
-            score = self.alpha_beta(test_go, self.depth, -math.inf, math.inf, False, piece_type)
+            score = self.alpha_beta(test_go, self.depth - 1, -math.inf, math.inf, False, piece_type)
             
             if score > best_score:
                 best_score = score
@@ -32,18 +32,7 @@ class AlphaBetaPlayer1:
             return best_move
 
     def alpha_beta(self, go, depth, alpha, beta, maximizing_player, piece_type):
-        '''
-        Alpha-beta pruning algorithm with transposition table for efficiency.
-
-        :param go: current GO board state.
-        :param depth: current depth in the search tree.
-        :param alpha: best value that the maximizer can guarantee.
-        :param beta: best value that the minimizer can guarantee.
-        :param maximizing_player: whether the current player is the maximizing player.
-        :param piece_type: 1('X') or 2('O').
-        :return: score of the board after evaluating possible moves.
-        '''
-        # Check if the board state is already evaluated
+        """Alpha-beta pruning algorithm with transposition table for efficiency."""
         board_hash = self.hash_board(go.board)
         if board_hash in self.transposition_table:
             return self.transposition_table[board_hash]
@@ -59,26 +48,27 @@ class AlphaBetaPlayer1:
             for move in possible_moves:
                 i, j = move
                 test_go = go.copy_board()
-                test_go.place_chess(i, j, piece_type)
-                eval = self.alpha_beta(test_go, depth - 1, alpha, beta, False, piece_type)
-                max_eval = max(max_eval, eval)
-                alpha = max(alpha, eval)
-                if beta <= alpha:
-                    break
+                if test_go.place_chess(i, j, piece_type):
+                    eval = self.alpha_beta(test_go, depth - 1, alpha, beta, False, piece_type)
+                    max_eval = max(max_eval, eval)
+                    alpha = max(alpha, eval)
+                    if beta <= alpha:
+                        break
             self.transposition_table[board_hash] = max_eval
             return max_eval
         else:
             min_eval = math.inf
-            possible_moves = self.get_ordered_moves(go, 3 - piece_type)
+            opponent_type = 3 - piece_type
+            possible_moves = self.get_ordered_moves(go, opponent_type)
             for move in possible_moves:
                 i, j = move
                 test_go = go.copy_board()
-                test_go.place_chess(i, j, 3 - piece_type)
-                eval = self.alpha_beta(test_go, depth - 1, alpha, beta, True, piece_type)
-                min_eval = min(min_eval, eval)
-                beta = min(beta, eval)
-                if beta <= alpha:
-                    break
+                if test_go.place_chess(i, j, opponent_type):
+                    eval = self.alpha_beta(test_go, depth - 1, alpha, beta, True, piece_type)
+                    min_eval = min(min_eval, eval)
+                    beta = min(beta, eval)
+                    if beta <= alpha:
+                        break
             self.transposition_table[board_hash] = min_eval
             return min_eval
 
@@ -97,6 +87,7 @@ class AlphaBetaPlayer1:
     def evaluate_move(self, go, i, j, piece_type):
         score = 0
         center = go.size // 2
+        discount = 0.1 if piece_type == 2 else 1.0  # Apply discount for White
 
         distance_to_center = abs(i - center) + abs(j - center)
         score += (go.size - distance_to_center) * 5  # Score more for proximity to center
@@ -122,77 +113,63 @@ class AlphaBetaPlayer1:
         if not self.is_near_stone(go, i, j):
             score -= 5
 
-        # If playing black (piece_type == 1), be aggressive
-        if piece_type == 1:
-            # Simulate placing the stone and count captured opponent stones
-            test_go = go.copy_board()
-            test_go.place_chess(i, j, piece_type)
-            # Remove opponent dead stones
+        # Simulate placing the stone and count captured opponent stones
+        test_go = go.copy_board()
+        if test_go.place_chess(i, j, piece_type):
             dead_stones = test_go.remove_died_pieces(3 - piece_type)
-            # Add score based on the number of opponent stones captured
-            score += len(dead_stones) * 50  # Assign a high weight to capturing stones
+            score += len(dead_stones) * 50 * discount  # High weight for capturing stones
+
+            # Extra aggression: reduce opponent liberties
+            liberties_reduction = self.reduce_opponent_liberties(go, i, j, piece_type)
+            score += liberties_reduction * 15 * discount  # Reward for reducing opponent liberties
+
+            # Threaten opponent groups
+            threatened_groups = self.count_threatened_groups(go, i, j, piece_type)
+            score += threatened_groups * 20 * discount  # Higher score for threatening opponent groups
 
         return score
 
     def creates_eye(self, go, i, j, piece_type):
-        '''
-        Determine if placing a piece at (i, j) would create an eye, which is critical for group survival.
-        '''
+        """Determine if placing a piece at (i, j) would create an eye."""
         neighbors = go.detect_neighbor(i, j)
-        empty_neighbors = 0
-        for neighbor in neighbors:
-            ni, nj = neighbor
-            if go.board[ni][nj] == 0:
-                empty_neighbors += 1
-        # A simple check for an eye: there must be at least 3 empty neighbors
-        return empty_neighbors >= 3
-        
+        for ni, nj in neighbors:
+            if go.board[ni][nj] != piece_type:
+                return False
+        return True
+
     def forms_wall(self, go, i, j, piece_type):
-        """
-        Calculate the length of horizontal and vertical walls around the move.
-        A wall is a continuous line of stones either horizontally or vertically.
-        """
+        """Calculate the length of horizontal and vertical walls around the move."""
+        horizontal_length = 1
+        # Left
+        j2 = j - 1
+        while j2 >= 0 and go.board[i][j2] == piece_type:
+            horizontal_length += 1
+            j2 -= 1
+        # Right
+        j2 = j + 1
+        while j2 < go.size and go.board[i][j2] == piece_type:
+            horizontal_length += 1
+            j2 += 1
 
-        # Calculate horizontal wall size
-        horizontal_length = 1  # Start with 1 because the current stone is part of the wall
-        # Count to the left
-        for j2 in range(j - 1, -1, -1):
-            if go.board[i][j2] == piece_type:
-                horizontal_length += 1
-            else:
-                break
-        # Count to the right
-        for j2 in range(j + 1, go.size):
-            if go.board[i][j2] == piece_type:
-                horizontal_length += 1
-            else:
-                break
+        vertical_length = 1
+        # Up
+        i2 = i - 1
+        while i2 >= 0 and go.board[i2][j] == piece_type:
+            vertical_length += 1
+            i2 -= 1
+        # Down
+        i2 = i + 1
+        while i2 < go.size and go.board[i2][j] == piece_type:
+            vertical_length += 1
+            i2 += 1
 
-        # Calculate vertical wall size
-        vertical_length = 1  # Start with 1 because the current stone is part of the wall
-        # Count upwards
-        for i2 in range(i - 1, -1, -1):
-            if go.board[i2][j] == piece_type:
-                vertical_length += 1
-            else:
-                break
-        # Count downwards
-        for i2 in range(i + 1, go.size):
-            if go.board[i2][j] == piece_type:
-                vertical_length += 1
-            else:
-                break
-
-        # Return the maximum of the horizontal or vertical wall size (prioritizing longer walls)
         return horizontal_length, vertical_length
 
     def is_near_stone(self, go, i, j):
-        '''
-        Check if the position is near another stone on the board.
-        '''
+        """Check if the position is near another stone on the board."""
         neighbors = go.detect_neighbor(i, j)
-        for neighbor in neighbors:
-            if go.board[neighbor[0]][neighbor[1]] != 0:
+        for ni, nj in neighbors:
+            if go.board[ni][nj] != 0:
                 return True
         return False
 
@@ -205,14 +182,10 @@ class AlphaBetaPlayer1:
         opponent_stones = go.score(3 - piece_type)
         score = my_stones - opponent_stones
 
-        # Additional heuristic: count liberties (freedom of groups)
-        liberties = 0
-        for i in range(go.size):
-            for j in range(go.size):
-                if go.board[i][j] == piece_type and go.find_liberty(i, j):
-                    liberties += 1
-                elif go.board[i][j] == 3 - piece_type and go.find_liberty(i, j):
-                    liberties -= 1
+        # Additional heuristic: count liberties
+        my_liberties = self.count_total_liberties(go, piece_type)
+        opponent_liberties = self.count_total_liberties(go, 3 - piece_type)
+        liberties = my_liberties - opponent_liberties
 
         if piece_type == 1:
             # For black, be aggressive
@@ -225,6 +198,57 @@ class AlphaBetaPlayer1:
 
         return score
 
+    def count_total_liberties(self, go, piece_type):
+        total_liberties = 0
+        visited = set()
+        for i in range(go.size):
+            for j in range(go.size):
+                if go.board[i][j] == piece_type and (i, j) not in visited:
+                    group = go.ally_dfs(i, j)
+                    visited.update(group)
+                    liberties = self.count_group_liberties(go, group)
+                    total_liberties += liberties
+        return total_liberties
+
+    def count_group_liberties(self, go, group):
+        """Counts the number of liberties for a group of stones."""
+        liberties = set()
+        for i, j in group:
+            neighbors = go.detect_neighbor(i, j)
+            for ni, nj in neighbors:
+                if go.board[ni][nj] == 0:
+                    liberties.add((ni, nj))
+        return len(liberties)
+
+    def reduce_opponent_liberties(self, go, i, j, piece_type):
+        """Calculate the reduction in opponent's liberties after placing a stone at (i, j)."""
+        test_go = go.copy_board()
+        if test_go.place_chess(i, j, piece_type):
+            opponent_type = 3 - piece_type
+            opponent_liberties_before = self.count_total_liberties(go, opponent_type)
+            opponent_liberties_after = self.count_total_liberties(test_go, opponent_type)
+            return opponent_liberties_before - opponent_liberties_after
+        else:
+            return 0
+
+    def count_threatened_groups(self, go, i, j, piece_type):
+        """Count the number of opponent groups that are put in atari (one liberty left)."""
+        test_go = go.copy_board()
+        if test_go.place_chess(i, j, piece_type):
+            opponent_type = 3 - piece_type
+            threatened_groups = 0
+            visited = set()
+            for x in range(test_go.size):
+                for y in range(test_go.size):
+                    if test_go.board[x][y] == opponent_type and (x, y) not in visited:
+                        group = test_go.ally_dfs(x, y)
+                        visited.update(group)
+                        liberties = self.count_group_liberties(test_go, group)
+                        if liberties == 1:
+                            threatened_groups += 1
+            return threatened_groups
+        else:
+            return 0
 
 if __name__ == "__main__":
     N = 5

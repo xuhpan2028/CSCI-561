@@ -14,7 +14,7 @@ def play_game():
     opponent = RandomPlayer()
 
     go = GO(N)
-    result = go.play(dqn_player,opponent,  verbose=False)
+    result = go.play(opponent,dqn_player,  verbose=False)
     # result = go.play(opponent, dqn_player, verbose=False)
     return result
 
