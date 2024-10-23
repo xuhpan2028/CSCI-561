@@ -16,7 +16,9 @@ class AlphaBetaPlayer1Tunable:
                  not_near_stone_penalty=-5.0,
                  capturing_stones_weight=50.0,
                  reduce_opponent_liberties_weight=15.0,
-                 threatened_groups_weight=20.0):
+                 threatened_groups_weight=20.0,
+                 d = 0.3
+                 ):
         self.type = 'alpha-beta'
         self.depth = depth
         self.transposition_table = {}  # Store evaluated board states
@@ -30,6 +32,7 @@ class AlphaBetaPlayer1Tunable:
         self.capturing_stones_weight = capturing_stones_weight
         self.reduce_opponent_liberties_weight = reduce_opponent_liberties_weight
         self.threatened_groups_weight = threatened_groups_weight
+        self.discount = d
 
     def get_input(self, go, piece_type):
         best_move = None
@@ -112,7 +115,7 @@ class AlphaBetaPlayer1Tunable:
     def evaluate_move(self, go, i, j, piece_type):
         score = 0
         center = go.size // 2
-        discount = 0.1 if piece_type == 2 else 1.0  # Apply discount for White
+        discount = self.discount if piece_type == 2 else 1.0  # Apply discount for White
 
         distance_to_center = abs(i - center) + abs(j - center)
         score += (go.size - distance_to_center) * self.proximity_weight  # Proximity to center
@@ -286,10 +289,12 @@ def objective(trial):
     capturing_stones_weight = trial.suggest_uniform('capturing_stones_weight', 0, 100)
     reduce_opponent_liberties_weight = trial.suggest_uniform('reduce_opponent_liberties_weight', 0, 30)
     threatened_groups_weight = trial.suggest_uniform('threatened_groups_weight', 0, 30)
+    d = trial.suggest_uniform('d', 0, 1)
+
 
     # Create an AlphaBetaPlayer1Tunable with these hyperparameters
     player = AlphaBetaPlayer1Tunable(
-        depth=3,  # Depth set to 2 for faster evaluation during tuning
+        depth=3, 
         proximity_weight=proximity_weight,
         wall_weight=wall_weight,
         liberty_bonus=liberty_bonus,
@@ -297,43 +302,41 @@ def objective(trial):
         not_near_stone_penalty=not_near_stone_penalty,
         capturing_stones_weight=capturing_stones_weight,
         reduce_opponent_liberties_weight=reduce_opponent_liberties_weight,
-        threatened_groups_weight=threatened_groups_weight
+        threatened_groups_weight=threatened_groups_weight,
+        d=d
     )
 
     # List of opponents to compete against
     opponents = [
         RandomPlayer(),
-        AlphaBetaPlayer1Tunable(depth=3),  # Default parameters
         MCTSPlayer(),
         GreedyPlayer(),
         AggressivePlayer()
     ]
     
     N = 5  # Board size
-    num_games_per_opponent = 2  # Number of games per opponent (one as black, one as white)
-    total_games = len(opponents) * num_games_per_opponent
     wins = 0
+    for i in range(5):
+        for opponent in opponents:
+            # Play as black
+            go = GO(N)
+            go.verbose = False
+            player1 = player  # Tuned player as black
+            player2 = opponent  # Opponent as white
+            result = go.play(player1, player2, verbose=False)
+            if result == 1:
+                wins += 1
+            
+            # Play as white
+            go = GO(N)
+            go.verbose = False
+            player1 = opponent  # Opponent as black
+            player2 = player  # Tuned player as white
+            result = go.play(player1, player2, verbose=False)
+            if result == 2:
+                wins += 1
 
-    for opponent in opponents:
-        # Play as black
-        go = GO(N)
-        go.verbose = False
-        player1 = player  # Tuned player as black
-        player2 = opponent  # Opponent as white
-        result = go.play(player1, player2, verbose=False)
-        if result == 1:
-            wins += 1
-        
-        # Play as white
-        go = GO(N)
-        go.verbose = False
-        player1 = opponent  # Opponent as black
-        player2 = player  # Tuned player as white
-        result = go.play(player1, player2, verbose=False)
-        if result == 2:
-            wins += 1
-
-    win_rate = wins / total_games
+    win_rate = wins / 10
     return win_rate
 
 def main():
