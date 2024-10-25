@@ -1,4 +1,7 @@
 import math
+from read import readInput
+from write import writeOutput
+from host import GO
 
 class AlphaBetaPlayer:
     def __init__(self, depth=3, 
@@ -27,17 +30,54 @@ class AlphaBetaPlayer:
     def get_input(self, go, piece_type):
         best_move = None
         best_score = -math.inf
-
+        
+        # Check if center is available and place there if possible
+        center = (go.size // 2, go.size // 2)
+        if go.valid_place_check(center[0], center[1], piece_type, test_check=True):
+            return center  # Return the center position if it's available
         # Order moves based on Go tactics
         possible_moves = self.get_ordered_moves(go, piece_type)
-        
+
+
+        # First, check if any move can capture opponent stones
+        capturing_moves = []
         for move in possible_moves:
             i, j = move
             test_go = go.copy_board()
             if not test_go.place_chess(i, j, piece_type):
                 continue
-            score = self.alpha_beta(test_go, self.depth - 1, -math.inf, math.inf, False, piece_type)
-            
+            dead_stones = test_go.remove_died_pieces(3 - piece_type)
+            if dead_stones:
+                capturing_moves.append((i, j, len(dead_stones)))
+
+        if capturing_moves:
+            # If there are capturing moves, pick the one that captures the most stones
+            capturing_moves.sort(key=lambda x: x[2], reverse=True)  # Sort by number of stones captured
+            best_move = (capturing_moves[0][0], capturing_moves[0][1])
+            return best_move  # Return the capturing move immediately
+
+
+        # **Modify the depth based on board occupancy**
+        empty_spots = sum(row.count(0) for row in go.board)
+        if empty_spots <= 18:
+            depth = 4
+        elif empty_spots <= 14:
+            depth = 5
+        elif empty_spots <= 12:
+            depth = 6
+        elif empty_spots <= 9:
+            depth = 9
+        else:
+            depth = self.depth  # Use the default depth
+
+
+        for move in possible_moves:
+            i, j = move
+            test_go = go.copy_board()
+            if not test_go.place_chess(i, j, piece_type):
+                continue
+            score = self.alpha_beta(test_go, depth - 1, -math.inf, math.inf, False, piece_type)
+
             if score > best_score:
                 best_score = score
                 best_move = (i, j)
@@ -130,6 +170,8 @@ class AlphaBetaPlayer:
         # Penalize moves that have no impact
         if not self.is_near_stone(go, i, j):
             score += self.not_near_stone_penalty
+
+        
 
         # Simulate placing the stone and count captured opponent stones
         test_go = go.copy_board()
@@ -267,3 +309,44 @@ class AlphaBetaPlayer:
             return threatened_groups
         else:
             return 0
+    def detect_wall_length(go, piece_type):
+        """
+        Detect the length of the wall (horizontally or vertically connected stones) for a given piece type.
+
+        :param go: Go instance.
+        :param piece_type: 1('X') or 2('O').
+        :return: Maximum length of the wall for the given piece type.
+        """
+        max_wall_length = 0
+        board_size = go.size
+
+        # Check horizontal walls
+        for i in range(board_size):
+            current_length = 0
+            for j in range(board_size):
+                if go.board[i][j] == piece_type:
+                    current_length += 1
+                    max_wall_length = max(max_wall_length, current_length)
+                else:
+                    current_length = 0  # Reset length if the stone is not part of the wall
+
+        # Check vertical walls
+        for j in range(board_size):
+            current_length = 0
+            for i in range(board_size):
+                if go.board[i][j] == piece_type:
+                    current_length += 1
+                    max_wall_length = max(max_wall_length, current_length)
+                else:
+                    current_length = 0  # Reset length if the stone is not part of the wall
+
+        return max_wall_length
+        
+if __name__ == "__main__":
+    N = 5
+    piece_type, previous_board, board = readInput(N)
+    go = GO(N)
+    go.set_board(piece_type, previous_board, board)
+    player = AlphaBetaPlayer()
+    action = player.get_input(go, piece_type)
+    writeOutput(action)
