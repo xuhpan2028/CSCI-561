@@ -8,12 +8,7 @@ class AlphaBetaPlayer_:
         self.type = 'alpha-beta'
         self.depth = depth
         self.transposition_table = {}
-        self.weights = weights or {'liberty_weight': 1.3056994088813842,
-                                    'threat_weight': 7.823974195583019, 
-                                    'stone_weight': 1.4240530349411848, 
-                                    'center_weight': 0.8440113112590852, 
-                                    'eye_weight': 1.0993452665370649, 
-                                    'aggression_weight': 5.796306510985723}
+        self.weights = weights or {'liberty_weight': 1.9534765905084095, 'threat_weight': 6.149773443181987, 'stone_weight': 4.556323688111932, 'center_weight': 3.293051824747559, 'eye_weight': 2.8763923920290906, 'aggression_weight': 2.6616146706417156, 'isolation_penalty': 2.980611980470317}
 
     def get_input(self, go, piece_type):
         best_move = None
@@ -159,6 +154,10 @@ class AlphaBetaPlayer_:
             threatened_groups = self.count_threatened_groups(go, 3 - piece_type)
             score += threatened_groups * self.weights['aggression_weight']
 
+        # Penalize isolated moves
+        isolation_penalty = self.calculate_isolation_penalty(go, piece_type)
+        score += isolation_penalty * self.weights['isolation_penalty']
+
         score -= self.count_threatened_groups(go, piece_type) * self.weights['threat_weight']
         return score
 
@@ -199,7 +198,7 @@ class AlphaBetaPlayer_:
         threatened_groups = 0
         visited = set()
         for i in range(go.size):
-            for j in range(go.size):
+            for j in range(go.size): 
                 if go.board[i][j] == opponent_type and (i, j) not in visited:
                     group = go.ally_dfs(i, j)
                     visited.update(group)
@@ -209,7 +208,21 @@ class AlphaBetaPlayer_:
         return threatened_groups
     
 
-
+    def calculate_isolation_penalty(self, go, piece_type):
+        """
+        Calculate isolation penalty based on the proximity of stones to allies.
+        Penalizes stones that have fewer allied neighbors.
+        """
+        isolation_penalty = 0
+        for i in range(go.size):
+            for j in range(go.size):
+                if go.board[i][j] == piece_type:
+                    # Check if stone has allies nearby
+                    neighbors = go.detect_neighbor(i, j)
+                    adjacent_allies = sum(1 for (ni, nj) in neighbors if go.board[ni][nj] == piece_type)
+                    if adjacent_allies == 0:  # Penalize if no allies are adjacent
+                        isolation_penalty -= 1
+        return isolation_penalty
         
 if __name__ == "__main__":
     N = 5

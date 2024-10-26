@@ -7,12 +7,13 @@ from host import GO
 
 def objective(trial):
     # Sample the weights for each heuristic
-    liberty_weight = trial.suggest_float('liberty_weight', 0.1, 2.0)
+    liberty_weight = trial.suggest_float('liberty_weight', 0.1, 5.0)
     threat_weight = trial.suggest_float('threat_weight', 0, 10.0)
-    stone_weight = trial.suggest_float('stone_weight', 0, 3.0)
-    center_weight = trial.suggest_float('center_weight', 0.01, 1.0)
-    eye_weight = trial.suggest_float('eye_weight', 0.5, 5.0)
+    stone_weight = trial.suggest_float('stone_weight', 0, 5.0)
+    center_weight = trial.suggest_float('center_weight', 0.01, 5.0)
+    eye_weight = trial.suggest_float('eye_weight', 0.1, 5.0)
     aggression_weight = trial.suggest_float('aggression_weight', 0, 10.0)
+    isolation_penalty = trial.suggest_float('isolation_penalty', 0, 5.0)
 
     # Create a tuned player with these weights
     weights = {
@@ -21,28 +22,30 @@ def objective(trial):
         'stone_weight': stone_weight,
         'center_weight': center_weight,
         'eye_weight': eye_weight,
-        'aggression_weight': aggression_weight
+        'aggression_weight': aggression_weight,
+        'isolation_penalty': isolation_penalty
     }
     
     player = AlphaBetaPlayer_(depth=3, weights=weights)
 
     # Simulate games and return the number of wins
     opponents = [
-        RandomPlayer(),
+        # RandomPlayer(),
         GreedyPlayer(),
         AggressivePlayer()
     ]
+    
 
-    def calculate_score(player):
-        if player == opponent[0]:
-            return 1
-        else:
-            return 2
+    # def calculate_score(player):
+    #     if player == opponent[0]:
+    #         return 1
+    #     else:
+    #         return 2
     
     N = 5  # Board size
     wins = 0
     
-    for _ in range(10):
+    for _ in range(15):
         for opponent in opponents:
             # Play as black
             go = GO(N)
