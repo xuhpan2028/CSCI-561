@@ -9,7 +9,7 @@ from player_aggressive import AggressivePlayer
 
 # player1 = GreedyPlayer()
 player1 = AlphaBetaPlayer_()
-player2 = RandomPlayer()
+player2 = AggressivePlayer()
 
 def play_game(N):
     go = GO(N)
