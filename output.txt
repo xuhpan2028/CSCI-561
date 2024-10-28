@@ -1,1 +1,1 @@
-2,0
+[I 2024-10-27 19:45:07,966] A new study created in memory with name: no-name-f771cb67-7634-4e91-811a-d21ab223486f

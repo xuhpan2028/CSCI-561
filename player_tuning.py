@@ -7,13 +7,13 @@ from host import GO
 
 def objective(trial):
     # Sample the weights for each heuristic
-    liberty_weight = trial.suggest_float('liberty_weight', 0.1, 5.0)
+    liberty_weight = trial.suggest_float('liberty_weight', 0, 10.0)
     threat_weight = trial.suggest_float('threat_weight', 0, 10.0)
-    stone_weight = trial.suggest_float('stone_weight', 0, 5.0)
+    stone_weight = trial.suggest_float('stone_weight', 0, 10.0)
     center_weight = trial.suggest_float('center_weight', 0.01, 5.0)
-    eye_weight = trial.suggest_float('eye_weight', 0.1, 5.0)
+    eye_weight = trial.suggest_float('eye_weight', 0, 10.0)
     aggression_weight = trial.suggest_float('aggression_weight', 0, 10.0)
-    isolation_penalty = trial.suggest_float('isolation_penalty', 0, 5.0)
+    isolation_penalty = trial.suggest_float('isolation_penalty', 0, 10.0)
 
     # Create a tuned player with these weights
     weights = {
@@ -45,7 +45,7 @@ def objective(trial):
     N = 5  # Board size
     wins = 0
     
-    for _ in range(15):
+    for _ in range(50):
         for opponent in opponents:
             # Play as black
             go = GO(N)

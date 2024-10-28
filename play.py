@@ -1,6 +1,5 @@
 from host import GO
 from random_player import RandomPlayer
-from alpha_best import AlphaBetaPlayer
 import concurrent.futures
 from tqdm import tqdm  # Import tqdm for progress bar
 from alpha_beta_player import AlphaBetaPlayer_
