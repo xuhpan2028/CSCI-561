@@ -7,7 +7,7 @@ from player_greedy import GreedyPlayer
 from player_aggressive import AggressivePlayer
 
 # player1 = GreedyPlayer()
-player1 = AlphaBetaPlayer_()
+player1 = AlphaBetaPlayer_(depth=3)
 player2 = AggressivePlayer()
 
 def play_game(N):

@@ -8,7 +8,7 @@ class AlphaBetaPlayer_:
         self.type = 'alpha-beta'
         self.depth = depth
         self.transposition_table = {}
-        self.weights = weights or {'liberty_weight': 1.9534765905084095, 'threat_weight': 6.149773443181987, 'stone_weight': 4.556323688111932, 'center_weight': 3.293051824747559, 'eye_weight': 2.8763923920290906, 'aggression_weight': 2.6616146706417156, 'isolation_penalty': 2.980611980470317}
+        self.weights = weights or {'liberty_weight': 1.2866824739015525, 'threat_weight': 9.645713940511298, 'stone_weight': 100.035281868832105, 'center_weight': 3.400971439390617, 'eye_weight': 0.6685850571951608, 'aggression_weight': 9.308199199910465, 'isolation_penalty': 1.0958084769880352}
 
     def get_input(self, go, piece_type):
         best_move = None
@@ -20,6 +20,7 @@ class AlphaBetaPlayer_:
             return center  # Return the center position if it's available
         # Order moves based on Go tactics
         possible_moves = self.get_moves(go, piece_type)
+
 
         # First, check if any move can capture opponent stones
         capturing_moves = []
@@ -124,7 +125,6 @@ class AlphaBetaPlayer_:
         return str(board)  # Simple hash based on board's string representation
 
     def evaluate(self, go, piece_type):
-        # Base score: difference in stone count
         my_stones = go.score(piece_type)
         opponent_stones = go.score(3 - piece_type)
         score = (my_stones - opponent_stones) * self.weights['stone_weight']
@@ -135,7 +135,7 @@ class AlphaBetaPlayer_:
         liberties = my_liberties - opponent_liberties
         score += liberties * self.weights['liberty_weight']
 
-        # Prefer central positions
+        # Central position preference
         center = (go.size // 2, go.size // 2)
         for i in range(go.size):
             for j in range(go.size):
@@ -159,6 +159,8 @@ class AlphaBetaPlayer_:
 
         score -= self.count_threatened_groups(go, piece_type) * self.weights['threat_weight']
         return score
+
+
 
     def count_total_liberties(self, go, piece_type):
         total_liberties = 0
